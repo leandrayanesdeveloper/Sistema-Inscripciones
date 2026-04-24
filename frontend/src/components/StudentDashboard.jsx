@@ -1,0 +1,258 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+
+axios.defaults.withCredentials = true;
+
+const StudentDashboard = ({ usuario, alCerrarSesion }) => {
+  const [seccionActual, setSeccionActual] = useState('perfil');
+  const [materiasDisponibles, setMateriasDisponibles] = useState([]); // Ahora vienen de la DB
+  const [materiasSeleccionadas, setMateriasSeleccionadas] = useState([]);
+  const [materiaExpandida, setMateriaExpandida] = useState(null);
+
+  // 2. CARGAR MATERIAS DESDE LA BASE DE DATOS AL INICIAR
+  useEffect(() => {
+    const cargarMaterias = async () => {
+      try {
+        const tokenJSON = window.localStorage.getItem('loggedAppUser');
+        if (!tokenJSON) return;
+        const config = {
+          headers: { Authorization: `Bearer ${JSON.parse(tokenJSON).token}` }
+        };
+
+        const respuesta = await axios.get('/api/materias', config);
+        // Filtramos para que el estudiante vea las materias de su carrera si es necesario
+        setMateriasDisponibles(respuesta.data);
+      } catch (error) {
+        console.error("Error cargando materias:", error);
+      }
+    };
+    cargarMaterias();
+  }, []);
+
+  // Función para inscribir localmente (en la lista de la pantalla)
+  const intentarInscribir = (materia, horario) => {
+    if (materiasSeleccionadas.find(m => m._id === materia._id)) {
+      Swal.fire('Atención', 'Ya seleccionaste esta materia.', 'info');
+      return;
+    }
+
+    // Validación de choque de horario
+    const choque = materiasSeleccionadas.find(m => 
+      m.seleccion.dia === horario.dia && m.seleccion.hora === horario.hora
+    );
+
+    if (choque) {
+      Swal.fire('Choque de Horario', `Coincide con: ${choque.nombre_materia}`, 'warning');
+      return;
+    }
+
+    setMateriasSeleccionadas([...materiasSeleccionadas, { 
+      ...materia, 
+      seleccion: horario 
+    }]);
+  };
+
+  const eliminarMateria = (id) => {
+    setMateriasSeleccionadas(materiasSeleccionadas.filter(m => m._id !== id));
+  };
+
+  const manejarConfirmacion = async () => {
+    if (materiasSeleccionadas.length === 0) {
+      Swal.fire('Error', 'Selecciona al menos una materia.', 'error');
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: '¿Confirmar Inscripción?',
+      text: "Se guardará tu registro permanente en el sistema.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, inscribirme',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+      // Enviamos cada materia seleccionada a la DB
+      await manejarConfirmacionFinal();
+    }
+  }; 
+
+  const manejarConfirmacionFinal = async () => {
+    try {
+      const tokenJSON = window.localStorage.getItem('loggedAppUser');
+      const config = {
+        headers: { Authorization: `Bearer ${JSON.parse(tokenJSON).token}` }
+      };
+
+      // Recorremos las materias seleccionadas y las guardamos una por una
+      for (const mat of materiasSeleccionadas) {
+        const datos = {
+          materiaId: mat._id, // El ID real de MongoDB
+          estudianteId: usuario?.id // ID del estudiante logueado
+        };
+        await axios.post('/api/inscripcion', datos, config);
+      }
+
+      Swal.fire('¡Éxito!', 'Tu inscripción ha sido procesada.', 'success');
+      setSeccionActual('comprobante'); // Saltamos al comprobante automáticamente
+      
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.error || 'No se pudo guardar la inscripción', 'error');
+    }
+  };
+
+
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-700 text-white p-6 shadow-lg">
+        <div className="mb-10 text-xl font-bold border-b border-gray-600 pb-4">Estudiante</div>
+        <nav className="space-y-4">
+          <button onClick={() => setSeccionActual('perfil')} className={`block w-full text-left transition ${seccionActual === 'perfil' ? 'text-indigo-300 font-bold' : 'hover:text-indigo-300'}`}>Mi Perfil</button>
+          <button onClick={() => setSeccionActual('inscripcion')} className={`block w-full text-left transition ${seccionActual === 'inscripcion' ? 'text-indigo-300 font-bold' : 'hover:text-indigo-300'}`}>Inscripción</button>
+          <button onClick={() => setSeccionActual('comprobante')} className={`block w-full text-left transition ${seccionActual === 'comprobante' ? 'text-indigo-300 font-bold' : 'hover:text-indigo-300'}`}>Comprobante</button>
+    </nav>
+      </aside>
+
+      {/* Contenido Principal */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        
+        {/* VISTA: MI PERFIL */}
+        {seccionActual === 'perfil' && (
+          <div className="bg-white p-8 rounded-xl shadow-md max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">Datos del Estudiante</h2>
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+              <div className="w-32 h-32 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-4xl font-bold border-4 border-white shadow">
+                {usuario?.nombre?.charAt(0) || 'L'}
+              </div>
+              <div className="flex-1 space-y-3 w-full">
+                <p className="bg-gray-50 p-3 rounded border"><strong>Nombre:</strong> {usuario?.nombre || 'Leandra Yanes'}</p>
+                <p className="bg-gray-50 p-3 rounded border"><strong>Cédula:</strong> {usuario?.cedula || 'V-00000000'}</p>
+                <p className="bg-gray-50 p-3 rounded border"><strong>Correo:</strong> {usuario?.email}</p>
+                <p className="bg-gray-50 p-3 rounded border"><strong>Carrera:</strong> Informática / PNF</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VISTA: INSCRIPCIÓN */}
+        {seccionActual === 'inscripcion' && (
+          <div className="max-w-4xl mx-auto space-y-6">
+            <h2 className="text-2xl font-bold text-gray-800">Proceso de Inscripción</h2>
+            
+            <div className="grid gap-4">
+              {materiasDisponibles.map((materia) => (
+                <div key={materia.id} className="border rounded-lg overflow-hidden bg-white shadow-sm">
+                  <button 
+                    onClick={() => setMateriaExpandida(materiaExpandida === materia.id ? null : materia.id)}
+                    className="w-full p-4 text-left font-bold flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition"
+                  >
+                    <span>{materia.nombre} <span className="text-xs font-normal text-gray-500 ml-2">({materia.semestre})</span></span>
+                    <span className="text-indigo-600">{materiaExpandida === materia.id ? '▲' : '▼'}</span>
+                  </button>
+
+                  {materiaExpandida === materia.id && (
+                    <div className="p-4 bg-white divide-y">
+                      {materia.horarios.length > 0 ? (
+                        materia.horarios.map((h) => (
+                          <div key={h.id} className="py-3 flex justify-between items-center hover:bg-indigo-50 px-2 transition rounded">
+                            <div>
+                              <p className="font-semibold text-sm">Prof. {h.docente} - Sec: {h.seccion}</p>
+                              <p className="text-xs text-gray-500">{h.dia} | {h.hora}</p>
+                            </div>
+                            <button 
+                              onClick={() => intentarInscribir(materia, h)}
+                              className="bg-indigo-600 text-white text-xs px-3 py-1 rounded hover:bg-indigo-700 shadow"
+                            >
+                              SELECCIONAR
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-red-500 text-sm italic p-2 text-center">No hay horarios disponibles.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* SELECCIÓN ACTUAL */}
+            <div className="mt-10 bg-white p-6 rounded-xl border-2 border-indigo-200 shadow-md">
+              <h3 className="font-bold mb-4 text-indigo-900 border-b pb-2">MATERIAS SELECCIONADAS</h3>
+              {materiasSeleccionadas.length === 0 ? (
+                <p className="text-gray-400 italic text-center py-4">Haz clic en una materia para ver horarios y seleccionar.</p>
+              ) : (
+                <div className="space-y-4">
+                  {materiasSeleccionadas.map(m => (
+                    <div key={m.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border">
+                      <div>
+                        <p className="font-bold text-indigo-800">{m.nombre}</p>
+                        <p className="text-xs text-gray-600">
+                          {m.seleccion.dia} {m.seleccion.hora} | Prof: {m.seleccion.docente}
+                        </p>
+                      </div>
+                      <button onClick={() => eliminarMateria(m.id)} className="text-red-500 hover:bg-red-100 p-2 rounded-full transition">🗑️</button>
+                    </div>
+                  ))}
+                  <div className="flex justify-end gap-4 mt-6 pt-4 border-t">
+                    <button 
+                    onClick={manejarConfirmacion}
+                    className="bg-green-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg hover:bg-green-700 transition">[ CONFIRMAR INSCRIPCIÓN ]
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* VISTA: COMPROBANTE */}
+        {seccionActual === 'comprobante' && (
+          <div className="bg-white p-10 rounded shadow-2xl max-w-3xl mx-auto border-t-8 border-indigo-900">
+            <div className="text-center mb-8">
+               <h2 className="font-bold text-2xl uppercase tracking-tighter">Comprobante de Inscripción</h2>
+               <p className="text-gray-400 text-xs">Universidad de Caracas</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6 mb-8 text-sm bg-gray-50 p-4 rounded">
+              <p><strong>Estudiante:</strong> {usuario?.nombre || 'Leandra Yanes'}</p>
+              <p><strong>Cédula:</strong> {usuario?.cedula || 'V-12.345.678'}</p>
+              <p><strong>Carrera:</strong> Informática</p>
+              <p><strong>Periodo:</strong> 2026-I</p>
+            </div>
+
+            <table className="w-full text-sm border">
+              <thead className="bg-gray-100 text-left">
+                <tr>
+                  <th className="p-3 border">Materia</th>
+                  <th className="p-3 border">Sección</th>
+                  <th className="p-3 border">Horario</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materiasSeleccionadas.map(m => (
+                  <tr key={m.id}>
+                    <td className="p-3 border">{m.nombre}</td>
+                    <td className="p-3 border text-center">{m.seleccion.seccion}</td>
+                    <td className="p-3 border">{m.seleccion.dia} ({m.seleccion.hora})</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <button 
+              onClick={() => window.print()}
+              className="mt-8 w-full bg-gray-800 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 hover:bg-black transition shadow-lg"
+            >
+               🖨️ Imprimir Comprobante (PDF)
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default StudentDashboard;
