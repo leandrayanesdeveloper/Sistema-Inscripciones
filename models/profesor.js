@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 
 const profesorSchema = new mongoose.Schema({
-    // Campos básicos de acceso (lo que usamos en el login)
+    // Campos básicos de acceso 
     email: { 
         type: String, 
         required: true, 
@@ -24,7 +24,7 @@ const profesorSchema = new mongoose.Schema({
         default: 'profesor' 
     },
 
-    // Atributos específicos de tu DER
+    // Atributos específicos
     nombre: { 
         type: String, 
         required: true 
@@ -42,7 +42,6 @@ const profesorSchema = new mongoose.Schema({
         required: false 
     }, // Ej: "Ingeniero de Sistemas"
     
-    // Cupos máximos de gestión que definiste
     cupos_maximos: { 
         type: Number, 
         default: 30 

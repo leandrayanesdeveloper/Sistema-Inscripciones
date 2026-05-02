@@ -19,7 +19,7 @@ inscripcionRouter.post('/', async (request, response) => {
         return response.status(400).json({ error: 'No se proporcionó un ID de materia' });
     }
 
-        // REVISIÓN: Usamos "inscripciones" que es como está en tu modelo
+        // Verificar que la materia exista
         if (user.inscripciones?.some(id => id.toString() === materiaId)) {
     return response.status(400).json({ error: 'Ya estás inscrito en esta materia' });
 };
@@ -29,7 +29,7 @@ inscripcionRouter.post('/', async (request, response) => {
         });
         const inscripcionGuardada = await nuevaInscripcion.save();
 
-        // ACTUALIZACIÓN: Guardamos el ID de la INSCRIPCIÓN en el usuario
+        // Guardamos el ID de la INSCRIPCIÓN en el usuario
         user.inscripciones.push(inscripcionGuardada._id);
         await user.save();
 

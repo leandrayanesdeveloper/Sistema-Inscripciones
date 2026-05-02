@@ -1,37 +1,56 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Swal from 'sweetalert2';
 
-axios.defaults.withCredentials = true;
 
-// Añadimos irARegistro a las props que recibe el componente
+
 const Login = ({ onLogin, irAHome, irARegistro, rolPredefinido = 'estudiante' }) => {
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const campo = rolPredefinido === 'estudiante' ? 'cedula' : 'email';
-      
-      const { data } = await axios.post('/api/login', {
-        [campo]: identificador,
-        password,
-        rol: rolPredefinido
-      });
-
-      onLogin({ ...data, rol: rolPredefinido });
-      
-      Swal.fire({
-        icon: 'success',
-        title: '¡Sesión Iniciada!',
-        showConfirmButton: false,
-        timer: 1500
-      });
-    } catch (error) {
-      Swal.fire('Error', error.response?.data?.error || 'Credenciales incorrectas', 'error');
-    }
+  e.preventDefault();
+  
+  // Creamos el objeto con los datos exactos que espera tu loginRouter
+  const datosLogin = {
+    password: password,
+    rol: rolPredefinido,
+    // Usamos lógica simple para no enviar campos undefined
+    [rolPredefinido === 'estudiante' ? 'cedula' : 'email']: identificador
   };
+
+  console.log("Enviando a la API:", datosLogin); // Para que veas en consola qué sale
+
+  try {
+    const response = await fetch('http://localhost:3001/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include', 
+      body: JSON.stringify(datosLogin)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error en el servidor');
+    }
+
+    // Si llegamos aquí, el login fue exitoso
+    onLogin({ ...data, rol: rolPredefinido });
+    
+    Swal.fire({
+      icon: 'success',
+      title: '¡Sesión Iniciada!',
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+  } catch (error) {
+    console.error("Error capturado:", error);
+    Swal.fire('Error', error.message, 'error');
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">

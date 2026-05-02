@@ -34,7 +34,7 @@ function App() {
           </button>
         </nav>
         
-        {/* Usamos 'usuario' o 'user' según pida tu componente */}
+        {/* Usamos 'usuario' o 'user'*/}
         {user.rol === 'profesor' 
           ? <ProfessorDashboard usuario={user} alCerrarSesion={() => setUser(null)} /> 
           : <StudentDashboard usuario={user} alCerrarSesion={() => setUser(null)} />

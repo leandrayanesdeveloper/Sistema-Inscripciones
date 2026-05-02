@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 
 const materiaSchema = new mongoose.Schema({
-    // Siguiendo tu DER: codigo_materia y nombre_materia
+
     codigo_materia: { 
         type: String, 
         required: true, 
@@ -27,7 +27,7 @@ const materiaSchema = new mongoose.Schema({
         required: true 
     },
 
-    // Relación con el Profesor (id_profesor en tu DER)
+    // Relación con el Profesor 
     profesor: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Profesor',
@@ -47,13 +47,12 @@ const materiaSchema = new mongoose.Schema({
         aula: { type: String, default: 'Por definir' }
     }],
 
-    // Relación N:M con Estudiantes (estudiantesMateria en tu DER)
+    // Relación N:M con Estudiantes 
     estudiantes: [{ 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Estudiante' 
     }],
 
-    // Cupos máximos que definiste en el DER para el profesor/materia
     cupos_maximos: { 
         type: Number, 
         default: 30 

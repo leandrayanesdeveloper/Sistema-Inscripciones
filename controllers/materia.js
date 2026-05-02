@@ -8,13 +8,16 @@ materiaRouter.use(userExtractor);
 // --- OBTENER MATERIAS ---
 materiaRouter.get('/', async (request, response) => {
     const user = request.user;
-    const rol = request.rol; // Asumiendo que tu middleware extrae el rol
+    const rol = request.rol; // Extraemos el rol del token
 
     if (rol === 'profesor') {
-        const materias = await Materia.find({ profesor: user._id });
+        // El profesor ve solo las suyas
+        const materias = await Materia.find({ profesor: request.user._id });
         return response.json(materias);
     } else {
-        const materias = await Materia.find({ estudiantes: user._id });
+        // El estudiante ve TODAS las materias disponibles para inscribirse
+        // Usamos .populate para mostrar el nombre del profesor en lugar de solo su ID
+        const materias = await Materia.find({}).populate('profesor', 'nombre'); 
         return response.json(materias);
     }
 });
@@ -47,7 +50,7 @@ materiaRouter.post('/', async (request, response) => {
         const materiaGuardada = await nuevaMateria.save();
         response.status(201).json(materiaGuardada);
     } catch (error) {
-        // Aquí verás si falta algún campo obligatorio
+        // si falta algún campo obligatorio
         console.error("Error al validar materia:", error.message);
         response.status(400).json({ error: error.message });
     }

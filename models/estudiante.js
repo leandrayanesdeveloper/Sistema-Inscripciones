@@ -4,7 +4,6 @@ const bcrypt = require('bcrypt');
 
 
 const estudianteSchema = new mongoose.Schema({
-    // Usamos los campos de tu DER
     nombre: { 
         type: String, 
         required: true 
@@ -33,7 +32,7 @@ const estudianteSchema = new mongoose.Schema({
     // Aquí es donde se guardan sus materias
     inscripciones: [{
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Inscripcion' // <--- Cambiado de 'Todo' a 'Inscripcion'
+            ref: 'Inscripcion' 
         }]
 });
 

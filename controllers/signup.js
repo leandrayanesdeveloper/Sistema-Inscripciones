@@ -15,12 +15,12 @@ signupRouter.post("/", async (request, response) => {
     }
 
     // 2. Elegimos el modelo según el rol que venga del frontend
-    // 1. Creas el objeto afuera o arriba de la ruta
+    // Esto es más seguro que usar un if-else, ya que no ejecutamos código innecesario
     const roles = {
     profesor: Profesor,
     estudiante: Estudiante,
  };
-// 2. En tu ruta, lo usas así:
+
     const Modelo = roles[rol];
 
 // 3. Validación de seguridad (por si mandan un rol que no existe)

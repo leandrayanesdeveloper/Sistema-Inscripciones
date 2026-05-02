@@ -5,7 +5,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 loginRouter.post('/', async (request, response) => {
- const { email, cedula, password, rol } = request.body; // <--- Recibes el rol
+console.log('Intentando iniciar sesión con:', request.body); // <--- Log para depuración    
+    const { email, cedula, password, rol } = request.body; // <--- Recibes el rol
 
     // 1. Seleccionamos el modelo según lo que mandó el frontend
     const Modelo = { profesor: Profesor, 
@@ -13,10 +14,13 @@ loginRouter.post('/', async (request, response) => {
 
     if (!Modelo) {
         return response.status(400).json({ error: 'Rol no válido' });
-    }
+    };
 
    const query = rol === 'estudiante' ? { cedula } : { email };
-   const userExist = await Modelo.findOne(query);
+console.log("Buscando usuario con esta query:", query);
+
+const userExist = await Modelo.findOne(query);
+console.log("Usuario encontrado en DB:", userExist);
 
   if (!userExist) {
     return response.status(400).json({ 
@@ -24,7 +28,7 @@ loginRouter.post('/', async (request, response) => {
     });
   }
 
-    //  Verificación (Como comentamos la API, asegúrate de que el registro guarde 'verified: true')
+    //  Verificación 
     if (!userExist.verified) {
         return response.status(400).json({ error: 'Tu cuenta no ha sido verificada aún' });
     }

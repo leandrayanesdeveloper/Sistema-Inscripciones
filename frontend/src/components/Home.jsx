@@ -1,6 +1,7 @@
 import React from 'react';
 import Login from './Login';
 import SignUp from './SignUpStudent';
+import SignUpProfessor from './SignUpProfessor';
 import StudentDashboard from './StudentDashboard';
 import ProfessorDashboard from './ProfessorDashboard';
 
