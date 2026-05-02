@@ -80,28 +80,20 @@ const StudentDashboard = ({ usuario, alCerrarSesion }) => {
 
   const manejarConfirmacionFinal = async () => {
     try {
-      const tokenJSON = window.localStorage.getItem('loggedAppUser');
-      const config = {
-        headers: { Authorization: `Bearer ${JSON.parse(tokenJSON).token}` }
-      };
-
       // Recorremos las materias seleccionadas y las guardamos una por una
       for (const mat of materiasSeleccionadas) {
         const datos = {
           materiaId: mat._id, // El ID real de MongoDB
           estudianteId: usuario?.id // ID del estudiante logueado
         };
-        await axios.post('/api/inscripcion', datos, config);
+        await axios.post('/api/inscripcion', datos);
       }
 
-      Swal.fire('¡Éxito!', 'Tu inscripción ha sido procesada.', 'success');
-      setSeccionActual('comprobante'); // Saltamos al comprobante automáticamente
-      
-    } catch (error) {
-      Swal.fire('Error', error.response?.data?.error || 'No se pudo guardar la inscripción', 'error');
-    }
+      Swal.fire('¡Inscrito!', 'Tu inscripción fue exitosa', 'success'); 
+} catch (error) {
+  Swal.fire('Error', 'Hubo un problema con la inscripción', 'error'); 
+}
   };
-
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -148,18 +140,18 @@ const StudentDashboard = ({ usuario, alCerrarSesion }) => {
                     onClick={() => setMateriaExpandida(materiaExpandida === materia.id ? null : materia.id)}
                     className="w-full p-4 text-left font-bold flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition"
                   >
-                    <span>{materia.nombre} <span className="text-xs font-normal text-gray-500 ml-2">({materia.semestre})</span></span>
+                    <span>({materia.nombre_materia})<span className="text-xs font-normal text-gray-500 ml-2">({materia.cod_semestre})</span></span>
                     <span className="text-indigo-600">{materiaExpandida === materia.id ? '▲' : '▼'}</span>
                   </button>
 
                   {materiaExpandida === materia.id && (
                     <div className="p-4 bg-white divide-y">
-                      {materia.horarios.length > 0 ? (
-                        materia.horarios.map((h) => (
+                      {materia.horario.length > 0 ? (
+                        materia.horario.map((h) => (
                           <div key={h.id} className="py-3 flex justify-between items-center hover:bg-indigo-50 px-2 transition rounded">
                             <div>
-                              <p className="font-semibold text-sm">Prof. {h.docente} - Sec: {h.seccion}</p>
-                              <p className="text-xs text-gray-500">{h.dia} | {h.hora}</p>
+                              <p className="font-semibold text-sm">Prof. {h.docente} - Sec: {h.seccion_grupo}</p>
+                              <p className="text-xs text-gray-500">{h.dias_semana} | {h.hora_inicio} - {h.hora_fin}</p>
                             </div>
                             <button 
                               onClick={() => intentarInscribir(materia, h)}
@@ -188,7 +180,7 @@ const StudentDashboard = ({ usuario, alCerrarSesion }) => {
                   {materiasSeleccionadas.map(m => (
                     <div key={m.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border">
                       <div>
-                        <p className="font-bold text-indigo-800">{m.nombre}</p>
+                        <p className="font-bold text-indigo-800">{m.nombre_materia}</p>
                         <p className="text-xs text-gray-600">
                           {m.seleccion.dia} {m.seleccion.hora} | Prof: {m.seleccion.docente}
                         </p>
@@ -234,7 +226,7 @@ const StudentDashboard = ({ usuario, alCerrarSesion }) => {
               <tbody>
                 {materiasSeleccionadas.map(m => (
                   <tr key={m.id}>
-                    <td className="p-3 border">{m.nombre}</td>
+                    <td className="p-3 border">{m.nombre_materia}</td>
                     <td className="p-3 border text-center">{m.seleccion.seccion}</td>
                     <td className="p-3 border">{m.seleccion.dia} ({m.seleccion.hora})</td>
                   </tr>

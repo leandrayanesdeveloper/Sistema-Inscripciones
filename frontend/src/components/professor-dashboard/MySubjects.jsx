@@ -47,11 +47,7 @@ const MySubjects = () => {
     
   const guardarEnDB = async () => {
     try {
-      const tokenJSON = window.localStorage.getItem('loggedAppUser');
-      const config = {
-        headers: { Authorization: `Bearer ${JSON.parse(tokenJSON).token}` }
-      };
-      
+  
       // Enviamos la "nueva" materia que acabas de crear arriba
       await axios.post('/api/materias', nueva, config);
       console.log("Guardado en MongoDB con éxito");
@@ -63,30 +59,37 @@ const MySubjects = () => {
   };
 
   // Añadir un bloque de horario a una materia específica
-  const añadirHorario = (idMateria) => {
-    if (!bloqueActual.dias_semana || !bloqueActual.hora_inicio || !bloqueActual.hora_fin || !bloqueActual.seccion_grupo) {
-      Swal.fire('Error', 'Faltan datos del bloque', 'error');
-      return;
-    }
-
-    if (verificarChoque(bloqueActual)) {
-      Swal.fire({
-        icon: 'error',
-        title: '¡Choque de Horario!',
-        text: `Ya tienes una clase el ${bloqueActual.dias_semana} en ese horario.`,
-        confirmButtonColor: '#4338ca'
-      });
-      return;
-    }
-
-    setMaterias(materias.map(m => {
-      if (m.id_temp === idMateria) {
-        return { ...m, horario: [...m.horario, { ...bloqueActual, id_bloque: Date.now() }] };
-      }
-      return m;
-    }));
-    setBloqueActual({ dias_semana: '', hora_inicio: '', hora_fin: '', seccion_grupo: '', aula: '' });
+ const añadirHorario = async (idMateria) => {
+  // 1. Validaciones previas (como ya las tienes)
+  if (!bloqueActual.dias_semana || !bloqueActual.hora_inicio || !bloqueActual.hora_fin || !bloqueActual.seccion_grupo) {
+    Swal.fire('Error', 'Faltan datos del bloque', 'error');
+    return;
   };
+
+  if (verificarChoque(bloqueActual)) {
+    Swal.fire('¡Choque de Horario!', 'Ya tienes una clase en ese bloque', 'error');
+    return;
+  };
+
+  try {
+    // Petición al servidor para guardar el bloque en la materia específica
+     await axios.put(`/api/materias/${idMateria}/horario`, bloqueActual); 
+
+    // Si el servidor responde bien, actualizamos la vista local
+   setMaterias(materias.map(m => {
+    if (m._id === idMateria) {
+      return { ...m, horario: [...m.horario, { ...bloqueActual }] }; 
+    }
+    return m;
+  }));
+
+   // Limpieza: Reseteamos el formulario del bloque
+  setBloqueActual({ dias_semana: '', hora_inicio: '', hora_fin: '', seccion_grupo: '', aula: '' }); 
+
+} catch (error) {
+  Swal.fire('Error', 'No se pudo guardar el horario', 'error');
+}
+};
 
   return (
     <div className="space-y-6">

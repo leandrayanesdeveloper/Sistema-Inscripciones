@@ -55,5 +55,30 @@ materiaRouter.post('/', async (request, response) => {
         response.status(400).json({ error: error.message });
     }
 });
+ 
+// --- AÑADIR HORARIO A MATERIA EXISTENTE ---
+materiaRouter.put('/:id/horario', async (request, response) => {
+  const { id } = request.params; // El ID que viene en la URL
+  const nuevoBloque = request.body; // Los datos del horario (dias_semana, horas, etc.)
+
+  try {
+    // Usamos $push para agregar el objeto al array 'horario' 
+    const materiaActualizada = await Materia.findByIdAndUpdate(
+      id,
+      { $push: { horario: nuevoBloque } },
+      { new: true, runValidators: true }
+    );
+
+    if (!materiaActualizada) {
+      return response.status(404).json({ error: 'Materia no encontrada' });
+    }
+
+    response.json(materiaActualizada);
+  } catch (error) {
+    console.error("Error al actualizar horario:", error.message);
+    response.status(400).json({ error: 'No se pudo añadir el horario' });
+  }
+});
+
 
 module.exports = materiaRouter;

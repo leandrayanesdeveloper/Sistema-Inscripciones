@@ -10,23 +10,24 @@ perfilRouter.get('/me', userExtractor, async (request, response) => {
     const userId = request.user.id;
     const rol = request.rol;
 
-    if (rol === 'estudiante') {
-      // Usamos .populate para convertir los IDs de materias en objetos completos
-      const estudiante = await Estudiante.findById(userId).populate({
-        path: 'materia',
-        select: 'nombre_materia horario seccion_grupo aula cod_semestre'
-      });
-      
-      if (!estudiante) {
-        return response.status(404).json({ error: 'Estudiante no encontrado' });
+  if (rol === 'estudiante') { 
+    const estudiante = await Estudiante.findById(userId).populate({
+      path: 'inscripciones', // [1] Nombre correcto del campo en el modelo Estudiante
+      populate: {
+        path: 'materia',     // [2] Nombre del campo dentro del modelo Inscripcion
+        select: 'nombre_materia horario cod_semestre',
       }
-      
-      return response.json(estudiante);
-    }
+    })
+
+  if (!estudiante) {
+    return response.status(404).json({ error: 'Estudiante no encontrado' });
+  }
+  return response.json(estudiante);
+}
 
     if (rol === 'profesor') {
       const profesor = await Profesor.findById(userId).populate({
-        path: 'materia',
+        path: 'materias',
         select: 'nombre_materia horario seccion_grupo cupos_maximos'
       });
 
