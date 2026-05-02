@@ -1,7 +1,7 @@
 const inscripcionRouter = require('express').Router();
 const Estudiante = require('../models/estudiante');
 const Materia = require('../models/materia');
-const Inscripcion = require('../models/inscripcion'); // <--- ¡No olvides importar el nuevo modelo!
+const Inscripcion = require('../models/inscripcion'); 
 const { userExtractor } = require('../middleware/auth');
 
 inscripcionRouter.use(userExtractor);
