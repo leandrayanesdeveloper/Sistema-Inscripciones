@@ -46,49 +46,41 @@ const MySubjects = () => {
     Swal.fire('Contenedor Creado', 'Ahora despliega la materia para añadir horarios', 'success');
     
   const guardarEnDB = async () => {
-    try {
-  
-      // Enviamos la "nueva" materia que acabas de crear arriba
-      await axios.post('/api/materias', nueva, config);
-      console.log("Guardado en MongoDB con éxito");
-    } catch (error) {
-      console.error("No se pudo guardar en la base de datos", error);
-    }
-  };
+  try {
+    const respuesta = await axios.post('/api/materias', nueva);
+    const materiaGuardada = respuesta.data; // Aquí viene el _id real
+
+    // Reemplaza la materia temporal por la de la DB
+    setMaterias(prev => prev.map(m => 
+      m.id_temp === nueva.id_temp ? materiaGuardada : m
+    ));
+    
+    console.log("Guardado en MongoDB con éxito");
+  } catch (error) {
+    console.error("Error al guardar:", error);
+  }
+};
   guardarEnDB();
   };
 
   // Añadir un bloque de horario a una materia específica
- const añadirHorario = async (idMateria) => {
-  // 1. Validaciones previas (como ya las tienes)
-  if (!bloqueActual.dias_semana || !bloqueActual.hora_inicio || !bloqueActual.hora_fin || !bloqueActual.seccion_grupo) {
-    Swal.fire('Error', 'Faltan datos del bloque', 'error');
+ const añadirHorario = async (idMateriaReal) => {
+  if (!idMateriaReal) {
+    Swal.fire('Error', 'La materia aún no se ha guardado en el servidor', 'error');
     return;
-  };
-
-  if (verificarChoque(bloqueActual)) {
-    Swal.fire('¡Choque de Horario!', 'Ya tienes una clase en ese bloque', 'error');
-    return;
-  };
+  }
 
   try {
-    // Petición al servidor para guardar el bloque en la materia específica
-     await axios.put(`/api/materias/${idMateria}/horario`, bloqueActual); 
-
-    // Si el servidor responde bien, actualizamos la vista local
-   setMaterias(materias.map(m => {
-    if (m._id === idMateria) {
-      return { ...m, horario: [...m.horario, { ...bloqueActual }] }; 
-    }
-    return m;
-  }));
-
-   // Limpieza: Reseteamos el formulario del bloque
-  setBloqueActual({ dias_semana: '', hora_inicio: '', hora_fin: '', seccion_grupo: '', aula: '' }); 
-
-} catch (error) {
-  Swal.fire('Error', 'No se pudo guardar el horario', 'error');
-}
+    // Ahora idMateriaReal será un ObjectId válido (ej: 65f1...)
+    await axios.put(`/api/materias/${idMateriaReal}/horario`, bloqueActual);
+    
+    // Actualizas el estado usando el _id
+    setMaterias(materias.map(m => 
+      m._id === idMateriaReal ? { ...m, horario: [...m.horario, { ...bloqueActual }] } : m
+    ));
+  } catch (error) {
+    console.error(error);
+  }
 };
 
   return (
@@ -107,19 +99,19 @@ const MySubjects = () => {
       {/* LISTADO DE MATERIAS CON DESPLEGABLE */}
       <div className="space-y-4">
         {materias.map(m => (
-          <div key={m.id_temp} className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+          <div key= {m._id || m.id_temp} className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
             <div 
               className="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50"
-              onClick={() => setIdDesplegado(idDesplegado === m.id_temp ? null : m.id_temp)}
+              onClick={() => setIdDesplegado(m._id || m.id_temp)}
             >
               <div>
                 <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold mr-3">{m.codigo_materia}</span>
                 <span className="font-bold text-xl text-gray-800">{m.nombre_materia}</span>
               </div>
-              <span className="text-2xl">{idDesplegado === m.id_temp ? '▲' : '▼'}</span>
+              <span className="text-2xl">{idDesplegado === m._id || idDesplegado === m.id_temp ? '▲' : '▼'}</span>
             </div>
 
-            {idDesplegado === m.id_temp && (
+            {idDesplegado === m._id || idDesplegado === m.id_temp && (
               <div className="p-6 border-t border-gray-100 bg-gray-50/30">
                 {/* Formulario de Bloque */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
@@ -130,7 +122,7 @@ const MySubjects = () => {
                   <input type="time" className="p-2 border rounded-lg" value={bloqueActual.hora_inicio} onChange={e => setBloqueActual({...bloqueActual, hora_inicio: e.target.value})} />
                   <input type="time" className="p-2 border rounded-lg" value={bloqueActual.hora_fin} onChange={e => setBloqueActual({...bloqueActual, hora_fin: e.target.value})} />
                   <input placeholder="Sección (I301)" className="p-2 border rounded-lg" value={bloqueActual.seccion_grupo} onChange={e => setBloqueActual({...bloqueActual, seccion_grupo: e.target.value})} />
-                  <button onClick={() => añadirHorario(m.id_temp)} className="bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700">Añadir Bloque</button>
+                  <button onClick={() => añadirHorario(m._id)} className="bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700">Añadir Bloque</button>
                 </div>
 
                 {/* Tabla de Horarios del Profesor */}
@@ -144,7 +136,7 @@ const MySubjects = () => {
                       </div>
                       <button 
                         onClick={() => {
-                          setMaterias(materias.map(mat => mat.id_temp === m.id_temp ? {...mat, horario: mat.horario.filter((_, i) => i !== index)} : mat))
+                          setMaterias(materias.map(mat => mat._id === m._id ? {...mat, horario: mat.horario.filter((_, i) => i !== index)} : mat))
                         }}
                         className="text-red-400 hover:text-red-600 font-bold"
                       >
