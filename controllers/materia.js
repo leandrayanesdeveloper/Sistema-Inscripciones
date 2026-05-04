@@ -22,6 +22,7 @@ materiaRouter.get('/', async (request, response) => {
     }
 });
 
+
 // --- CREAR MATERIA (¡SOLO PROFESORES!) ---
 materiaRouter.post('/', async (request, response) => {
     const user = request.user;

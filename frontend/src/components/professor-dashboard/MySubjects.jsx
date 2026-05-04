@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import axios from "axios";
 
 const MySubjects = () => {
-  const [materias, setMaterias] = useState([]); // Aquí guardarás lo que traigas del back
+  const [materias, setMaterias] = useState([]); 
+  // Aquí guardarás lo que traigas del back
   const [materiaActual, setMateriaActual] = useState({
     nombre_materia: "",
     codigo_materia: "",
@@ -11,6 +12,7 @@ const MySubjects = () => {
     cod_semestre: "",
     cupos_maximos: 30,
   });
+
 
   const [bloqueActual, setBloqueActual] = useState({
     dias_semana: "",
@@ -22,24 +24,13 @@ const MySubjects = () => {
 
   const [idDesplegado, setIdDesplegado] = useState(null);
 
-  const materiasDePrueba = [
-    {
-      id_temp: 1,
-      nombre_materia: "MATEMÁTICA I",
-      codigo_materia: "MAT101",
-      cod_carrera: "INFORMATICA",
-      cod_semestre: "1",
-      horario: [],
-    },
-    {
-      id_temp: 2,
-      nombre_materia: "PROGRAMACIÓN I",
-      codigo_materia: "PRG101",
-      cod_carrera: "INFORMATICA",
-      cod_semestre: "1",
-      horario: [],
-    },
-  ];
+  // Traer las materias del profesor al cargar el componente
+  useEffect(() => {
+
+  getMaterias();
+ }, []);
+ 
+
   // --- LÓGICA DE DETECCIÓN DE CHOQUE ---
   const verificarChoque = (nuevoBloque) => {
     return materias.some((m) =>
@@ -101,8 +92,18 @@ const MySubjects = () => {
     }
   };
 
+  const getMaterias = async () => {
+    try { 
+      const respuesta = await axios.get('/api/materias');
+      setMaterias(respuesta.data);
+      console.log("Materias obtenidas:", respuesta.data);
+    } catch (error) {
+      Swal.fire("Error", "No se pudieron obtener las materias. Intenta de nuevo.");
+    }
+   }
   // Añadir un bloque de horario a una materia específica
   const añadirHorario = async (idmateriaActual, id_temp) => {
+    
     console.log(idmateriaActual);
     console.log(id_temp);
     if (!idmateriaActual) {
@@ -191,12 +192,12 @@ const MySubjects = () => {
       <div className="space-y-4">
         {materias.map((m) => (
           <div
-            key={m._id || m.id_temp}
+            key={m._id}
             className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden"
           >
             <div
               className="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50"
-              onClick={() => setIdDesplegado(m._id || m.id_temp)}
+              onClick={() => setIdDesplegado(m._id)}
             >
               <div>
                 <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold mr-3">
@@ -207,7 +208,7 @@ const MySubjects = () => {
                 </span>
               </div>
               <span className="text-2xl">
-                {idDesplegado === m._id || idDesplegado === m.id_temp
+                {idDesplegado === m._id
                   ? "▲"
                   : "▼"}
               </span>
