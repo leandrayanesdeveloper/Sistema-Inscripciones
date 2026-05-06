@@ -6,7 +6,6 @@ const materiaSchema = new mongoose.Schema({
     codigo_materia: { 
         type: String, 
         required: true, 
-        unique: true,
         trim: true 
     },
     nombre_materia: { 

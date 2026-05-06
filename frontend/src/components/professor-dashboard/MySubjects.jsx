@@ -3,7 +3,7 @@ import Swal from "sweetalert2";
 import axios from "axios";
 
 const MySubjects = () => {
-  const [materias, setMaterias] = useState([]); 
+  const [materias, setMaterias] = useState([]);
   // Aquí guardarás lo que traigas del back
   const [materiaActual, setMateriaActual] = useState({
     nombre_materia: "",
@@ -12,7 +12,6 @@ const MySubjects = () => {
     cod_semestre: "",
     cupos_maximos: 30,
   });
-
 
   const [bloqueActual, setBloqueActual] = useState({
     dias_semana: "",
@@ -26,66 +25,52 @@ const MySubjects = () => {
 
   // Traer las materias del profesor al cargar el componente
   useEffect(() => {
-
-  getMaterias();
- }, []);
- 
+    getMaterias();
+  }, []);
 
   // --- LÓGICA DE DETECCIÓN DE CHOQUE ---
   const verificarChoque = (nuevoBloque) => {
     return materias.some((m) =>
-      m.horario.some(
-        (h) =>
-          h.dias_semana === nuevoBloque.dias_semana &&
-          ((nuevoBloque.hora_inicio >= h.hora_inicio &&
-            nuevoBloque.hora_inicio < h.hora_fin) ||
-            (nuevoBloque.hora_fin > h.hora_inicio &&
-              nuevoBloque.hora_fin <= h.hora_fin)),
-      ),
+      m.horario.some((h) => {
+        // 1. Validar que sea el mismo día
+        if (h.dias_semana !== nuevoBloque.dias_semana) return false;
+
+        // 2. Aplicar la lógica de rangos (Magia Técnica [2])
+        // Hay choque si el nuevo inicio es antes del fin existente
+        // Y el nuevo fin es después del inicio existente.
+        const haySolapamiento =
+          nuevoBloque.hora_inicio < h.hora_fin &&
+          nuevoBloque.hora_fin > h.hora_inicio;
+
+        return haySolapamiento;
+      }),
     );
   };
 
   // Crear la materia en el estado (Contenedor)
-  //   const handleCrearMateria = (e) => {
-  //     e.preventDefault();
-  //     const nueva = { ...materiaActual, id_temp: Date.now(), horario: [] };
-  //     setMaterias([...materias, nueva]);
-  //     setMateriaActual({ nombre_materia: '', codigo_materia: '', cod_carrera: 'INFORMATICA', cod_semestre: '', cupos_maximos: 30 });
-  //     Swal.fire('Contenedor Creado', 'Ahora despliega la materia para añadir horarios', 'success');
-
-  //   const guardarEnDB = async () => {
-  //   try {
-  //     const respuesta = await axios.post('/api/materias', nueva);
-  //     const materiaGuardada = respuesta.data; // Aquí viene el _id real
-
-  //     Reemplaza la materia temporal por la de la DB
-  //     setMaterias(prev => prev.map(m =>
-  //       m.id_temp === nueva.id_temp ? materiaGuardada : m
-  //     ));
-
-  //     console.log("Guardado en MongoDB con éxito");
-  //   } catch (error) {
-  //     console.error("Error al guardar:", error);
-  //   }
-  // };
-  //   };
   const handleCrearMateria = async (e) => {
     e.preventDefault();
+    const nueva = { ...materiaActual, id_temp: Date.now(), horario: [] };
     try {
-      const respuesta = await axios.post("/api/materias", materiaActual);
+      const tokenJSON = window.localStorage.getItem("loggedAppUser");
+      const config = {
+        headers: { Authorization: `Bearer ${JSON.parse(tokenJSON).token}` },
+      };
+      const respuesta = await axios.post("/api/materias", nueva, config);
+      const materiaDesdeDB = respuesta.data;
       if (respuesta.status === 201) {
         Swal.fire(
           "¡Materia Creada!",
           "La materia se ha creado exitosamente en el servidor.",
           "success",
         );
-      setMateriaActual({
-        nombre_materia: "",
-        codigo_materia: "",
-        cod_carrera: "INFORMATICA",
-        cod_semestre: "",
-        cupos_maximos: 30,
-      });
+        setMateriaActual({
+          nombre_materia: "",
+          codigo_materia: "",
+          cod_carrera: "INFORMATICA",
+          cod_semestre: "",
+          cupos_maximos: 30,
+        });
       }
     } catch (error) {
       Swal.fire("Error", "No se pudo crear la materia. Intenta de nuevo.");
@@ -93,42 +78,146 @@ const MySubjects = () => {
   };
 
   const getMaterias = async () => {
-    try { 
-      const respuesta = await axios.get('/api/materias');
+    try {
+      const respuesta = await axios.get("/api/materias");
       setMaterias(respuesta.data);
       console.log("Materias obtenidas:", respuesta.data);
     } catch (error) {
-      Swal.fire("Error", "No se pudieron obtener las materias. Intenta de nuevo.");
-    }
-   }
-  // Añadir un bloque de horario a una materia específica
-  const añadirHorario = async (idmateriaActual, id_temp) => {
-    
-    console.log(idmateriaActual);
-    console.log(id_temp);
-    if (!idmateriaActual) {
       Swal.fire(
         "Error",
-        "La materia aún no se ha guardado en el servidor",
-        "error",
+        "No se pudieron obtener las materias. Intenta de nuevo.",
       );
+    }
+  };
+  // Añadir un bloque de horario a una materia específica
+  const añadirHorario = async (idMateria) => {
+    // Función auxiliar para forzar formato HH:mm (24h)
+    const limpiarHora = (hora) => {
+      // Si viene con am/pm, esto lo detecta y podrías convertirlo,
+      return hora.split(" "); // Quita cualquier "am" o "pm" si existiera
+    };
+
+    const bloqueLimpio = {
+      ...bloqueActual,
+      hora_inicio: limpiarHora(bloqueActual.hora_inicio),
+      hora_fin: limpiarHora(bloqueActual.hora_fin),
+    };
+
+    if (verificarChoque(bloqueLimpio)) {
+      Swal.fire("Choque detectado", "Este horario ya está ocupado", "warning");
       return;
     }
 
-    try {
-      // Ahora idMateriaReal será un ObjectId válido (ej: 65f1...)
-      await axios.put(`/api/materias/${idmateriaActual}/horario`, bloqueActual);
+    // 1. VALIDACIÓN ESTRICTA (No permitir strings vacíos o nulos)
+    if (
+      !bloqueActual.dias_semana.trim() ||
+      !bloqueActual.hora_inicio ||
+      !bloqueActual.hora_fin ||
+      !bloqueActual.seccion_grupo.trim() ||
+      !bloqueActual.aula.trim()
+    ) {
+      Swal.fire(
+        "Error",
+        "Todos los campos del bloque son obligatorios",
+        "error",
+      );
+      return; // Detiene la ejecución aquí
+    }
 
-      // Actualizas el estado usando el _id
+    try {
+      const tokenJSON = window.localStorage.getItem("loggedAppUser");
+      if (!tokenJSON) {
+        Swal.fire(
+          "Error de Sesión",
+          "No se encontró una sesión activa. Por favor, reingresa.",
+          "error",
+        );
+        return;
+      }
+
+      const user = JSON.parse(tokenJSON);
+
+      const config = {
+        headers: { Authorization: `Bearer ${JSON.parse(tokenJSON).token}` },
+      };
+
+      // ENVIAR AL BACKEND: Esto es lo que hace que el estudiante lo vea
+      await axios.put(
+        `/api/materias/${idMateria}/horario`,
+        bloqueActual,
+        config,
+      );
+
+      // Actualizar vista local
       setMaterias(
-        materias.map((m) =>
-          m._id === idmateriaActual
-            ? { ...m, horario: [...m.horario, { ...bloqueActual }] }
-            : m,
-        ),
+        materias.map((m) => {
+          const idActual = m._id || m.id_temp;
+          if (idActual === idMateria) {
+            return { ...m, horario: [...m.horario, { ...bloqueActual }] };
+          }
+          return m;
+        }),
+      );
+
+      setBloqueActual({
+        dias_semana: "",
+        hora_inicio: "",
+        hora_fin: "",
+        seccion_grupo: "",
+        aula: "",
+      });
+    } catch (error) {
+      console.error("Error al guardar el horario:", error);
+      Swal.fire(
+        "Error",
+        "No se pudo guardar el horario en el servidor",
+        "error",
+      );
+    }
+  };
+
+  // --- FUNCIÓN PARA ELIMINAR MATERIA COMPLETA (El botón de la basurita) ---
+  const eliminarMateria = async (idMateria) => {
+    const resultado = await Swal.fire({
+      title: "¿Eliminar materia?",
+      text: "Se borrarán todos los horarios asociados permanentemente.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Sí, eliminar",
+    });
+
+    if (resultado.isConfirmed) {
+      try {
+        // Petición al backend usando el ID real
+        await axios.delete(`/api/materias/${idMateria}`);
+        // Filtramos localmente para actualizar la vista sin recargar
+        setMaterias(materias.filter((m) => (m._id || m.id_temp) !== idMateria));
+        Swal.fire("Eliminada", "La materia ha sido borrada.", "success");
+      } catch (error) {
+        Swal.fire("Error", "No se pudo eliminar de la base de datos.", "error");
+      }
+    }
+  };
+
+  // --- FUNCIÓN PARA ELIMINAR UN DÍA/HORA ESPECÍFICO ---
+  const eliminarHorario = async (idMateria, index) => {
+    try {
+      // Llamada al backend para persistir el cambio en MongoDB
+      await axios.delete(`/api/materias/${idMateria}/horario/${index}`);
+
+      // Actualización inmutable del estado
+      setMaterias(
+        materias.map((m) => {
+          const idActual = m._id || m.id_temp;
+          if (idActual === idMateria) {
+            return { ...m, horario: m.horario.filter((_, i) => i !== index) };
+          }
+          return m;
+        }),
       );
     } catch (error) {
-      console.error(error);
+      Swal.fire("Error", "No se pudo eliminar el horario de la BD.", "error");
     }
   };
 
@@ -137,7 +226,7 @@ const MySubjects = () => {
       {/* FORMULARIO PARA CREAR MATERIA */}
       <div className="bg-white p-6 rounded-2xl shadow-xl border-t-8 border-indigo-900">
         <h3 className="font-bold text-gray-800 mb-4">
-          Registrar Nueva Materia (UNEXCA)
+          Registrar Nueva Materia
         </h3>
         <form
           onSubmit={handleCrearMateria}
@@ -190,34 +279,48 @@ const MySubjects = () => {
 
       {/* LISTADO DE MATERIAS CON DESPLEGABLE */}
       <div className="space-y-4">
-        {materias.map((m) => (
-          <div
-            key={m._id}
-            className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden"
-          >
+        {materias.map((m) => {
+          // Definimos la variable idActual para que el sistema reconozca
+          // el ID de la base de datos o el temporal [History]
+          const idActual = m._id || m.id_temp;
+
+          return (
             <div
-              className="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50"
-              onClick={() => setIdDesplegado(m._id)}
+              key={idActual}
+              className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden"
             >
-              <div>
-                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold mr-3">
-                  {m.codigo_materia}
-                </span>
-                <span className="font-bold text-xl text-gray-800">
-                  {m.nombre_materia}
+              <div className="p-5 flex justify-between items-center">
+                <div
+                  className="flex-1 cursor-pointer hover:bg-gray-50"
+                  onClick={() =>
+                    setIdDesplegado(idDesplegado === idActual ? null : idActual)
+                  }
+                >
+                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold mr-3">
+                    {m.codigo_materia}
+                  </span>
+                  <span className="font-bold text-xl text-gray-800">
+                    {m.nombre_materia}
+                  </span>
+                </div>
+
+                {/* BOTÓN DE LA BASURITA (Eliminar Materia Completa) */}
+                <button
+                  onClick={() => eliminarMateria(idActual)}
+                  className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors mr-4"
+                >
+                  🗑️
+                </button>
+
+                <span className="text-2xl">
+                  {idDesplegado === idActual ? "▲" : "▼"}
                 </span>
               </div>
-              <span className="text-2xl">
-                {idDesplegado === m._id
-                  ? "▲"
-                  : "▼"}
-              </span>
-            </div>
 
-            {idDesplegado === m._id ||
-              (idDesplegado === m.id_temp && (
+              {/* CONTENIDO DESPLEGABLE: Ahora se mostrará porque usamos idActual */}
+              {idDesplegado === idActual && (
                 <div className="p-6 border-t border-gray-100 bg-gray-50/30">
-                  {/* Formulario de Bloque */}
+                  {/* Formulario de Bloque (Inputs para elegir el horario) */}
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                     <select
                       className="p-2 border rounded-lg bg-white"
@@ -266,7 +369,7 @@ const MySubjects = () => {
                       }
                     />
                     <input
-                      placeholder="Sección (I301)"
+                      placeholder="Sección"
                       className="p-2 border rounded-lg"
                       value={bloqueActual.seccion_grupo}
                       onChange={(e) =>
@@ -276,15 +379,27 @@ const MySubjects = () => {
                         })
                       }
                     />
+                    <input
+                      placeholder="Aula"
+                      className="p-2 border rounded-lg"
+                      value={bloqueActual.aula}
+                      onChange={(e) =>
+                        setBloqueActual({
+                          ...bloqueActual,
+                          aula: e.target.value,
+                        })
+                      }
+                    />
+
                     <button
-                      onClick={() => añadirHorario(m._id, m.id_temp)}
+                      onClick={() => añadirHorario(idActual)}
                       className="bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700"
                     >
                       Añadir Bloque
                     </button>
                   </div>
 
-                  {/* Tabla de Horarios del Profesor */}
+                  {/* Tabla de Horarios guardados */}
                   <div className="space-y-3">
                     {m.horario.map((h, index) => (
                       <div
@@ -292,31 +407,21 @@ const MySubjects = () => {
                         className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-indigo-50"
                       >
                         <div className="flex gap-8 items-center">
-                          <span className="font-black text-indigo-900 w-24">
+                          <span className="font-black text-indigo-900">
                             {h.dias_semana}
                           </span>
-                          <span className="text-gray-600 font-medium">
+                          <span className="text-gray-600">
                             {h.hora_inicio} - {h.hora_fin}
                           </span>
                           <span className="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold text-gray-500">
                             Sección: {h.seccion_grupo}
                           </span>
+                          <span className="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold text-gray-500">
+                            Aula: {h.aula}
+                          </span>
                         </div>
                         <button
-                          onClick={() => {
-                            setMaterias(
-                              materias.map((mat) =>
-                                mat._id === m._id
-                                  ? {
-                                      ...mat,
-                                      horario: mat.horario.filter(
-                                        (_, i) => i !== index,
-                                      ),
-                                    }
-                                  : mat,
-                              ),
-                            );
-                          }}
+                          onClick={() => eliminarHorario(idActual, index)}
                           className="text-red-400 hover:text-red-600 font-bold"
                         >
                           ELIMINAR
@@ -325,19 +430,11 @@ const MySubjects = () => {
                     ))}
                   </div>
                 </div>
-              ))}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
-      {materias.length > 0 && (
-        <button
-          onClick={() => window.print()}
-          className="mt-8 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 print:hidden"
-        >
-          <span className="text-xl">🖨️</span>
-          Generar Comprobante de Carga Académica
-        </button>
-      )}
     </div>
   );
 };

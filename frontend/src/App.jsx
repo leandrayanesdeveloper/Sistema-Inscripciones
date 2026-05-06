@@ -6,7 +6,8 @@ import SignUpProfessor from './components/SignUpProfessor';
 import StudentDashboard from './components/StudentDashboard';
 import ProfessorDashboard from './components/ProfessorDashboard';
 
-const withCredentials = true; // Esto es para que el navegador envíe las cookies automáticamente en cada solicitud, lo cual es necesario para mantener la sesión activa después del login. 
+const withCredentials = true; 
+// Esto es para que el navegador envíe las cookies automáticamente en cada solicitud, lo cual es necesario para mantener la sesión activa después del login. 
 
 function App() {
   const [user, setUser] = useState(null);
