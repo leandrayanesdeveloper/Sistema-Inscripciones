@@ -27,6 +27,8 @@ materiaRouter.post("/", async (request, response) => {
   const user = request.user;
   const rol = request.rol;
   const body = request.body;
+  const { codigo_materia, nombre_materia, cod_carrera, cod_semestre } =
+    request.body;
 
   // 1. Verificación de Rol
   if (rol !== "profesor") {
@@ -43,7 +45,7 @@ materiaRouter.post("/", async (request, response) => {
     cod_carrera: body.cod_carrera,
     cod_semestre: body.cod_semestre,
     profesor: user._id, // ID extraído del token
-    horario: body.horario, // El array de objetos [{dias_semana, hora_inicio, ...}]
+    horario: [], // El array de objetos [{dias_semana, hora_inicio, ...}]
     cupos_maximos: body.cupos_maximos || 30,
   });
 
@@ -92,7 +94,6 @@ materiaRouter.delete("/:id", async (request, response) => {
 
 // --- ELIMINAR UN BLOQUE DE HORARIO ESPECÍFICO ---
 materiaRouter.delete("/:id/horario/:index", async (request, response) => {
-
   try {
     const { id, index } = request.params;
     const materia = await Materia.findById(id);

@@ -13,9 +13,6 @@ const materiaSchema = new mongoose.Schema({
         required: true,
         trim: true 
     },
-    descripcion: { 
-        type: String 
-    },
     // Campos de organización académica 
     cod_carrera: { 
         type: String, 
