@@ -27,7 +27,7 @@ const app = express();
 
 
 
-    mongoose.connect(process.env.MONGO_URI_TEST)
+    mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Conectado a MongoDB con éxito');
   })
